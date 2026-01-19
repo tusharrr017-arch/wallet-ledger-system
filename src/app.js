@@ -1,6 +1,6 @@
 const express = require("express");
 const pool = require("./config/db");
-
+const userRoutes = require("./routes/userRoutes");
 const app = express();
 app.use(express.json());
 
@@ -20,5 +20,6 @@ app.get("/health", async (req, res) => {
     });
   }
 });
+app.use("/api/users", userRoutes);
 
 module.exports = app;
