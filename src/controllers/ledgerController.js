@@ -1,4 +1,4 @@
-const {depositToWallet ,withdrawFromWallet ,getWalletBalance}= require("../services/ledgerService");
+const {depositToWallet ,withdrawFromWallet ,getWalletBalance , applyDailyYield}= require("../services/ledgerService");
 
 const deposit =async (req,res)=>{
     try{
@@ -36,7 +36,7 @@ const withdraw =async(req,res)=>{
         const{amount,reference_id}= req.body;
         if(!amount || !reference_id){
             return res.status(400).json({
-                ok:"false",
+                ok:false,
                 message:"amount and reference_id are required",
             });
         }
@@ -81,5 +81,22 @@ const getBalance = async (req, res) => {
     });
   }
 };
+const applyYield = async (req, res) => {
+  try {
+    const { walletId } = req.params;
 
-module.exports= {deposit,withdraw,getBalance};
+    const result = await applyDailyYield( {walletId} );
+
+    if (result.ok === false) {
+      return res.status(404).json(result);
+    }
+
+    return res.status(200).json(result);
+  } catch (err) {
+    return res.status(500).json({
+      ok: false,
+      message: err.message,
+    });
+  }
+};
+module.exports= {deposit,withdraw,getBalance,applyYield};

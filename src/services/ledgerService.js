@@ -100,10 +100,90 @@ const getWalletBalance = async (walletId) => {
     FROM ledger_entries
     WHERE wallet_id = ?
     `,
-    [walletId]
+    [walletId],
   );
 
   return rows[0].balance;
 };
+const applyDailyYield = async ({ walletId }) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [walletRows] = await connection.query(
+      "SELECT id FROM wallets WHERE id=? FOR UPDATE",
+      [walletId],
+    );
+    if (walletRows.length === 0) {
+      await connection.rollback();
+      return {
+        ok: false,
+        message: "Wallet not found",
+      };
+    }
+    const [existingYield] = await connection.query(
+      `SELECT id 
+             FROM ledger_entries
+             WHERE wallet_id=?
+               AND type ="YIELD"
+               AND DATE(created_at)= CURDATE()
+             LIMIT 1`,
+      [walletId],
+    );
+    if (existingYield.length > 0) {
+      await connection.commit();
+      return {
+        ok: true,
+        applied: false,
+        message: "Yield already applied today",
+      };
+    }
+    const [balanceRows] = await connection.query(
+      `SELECT 
+        COALESCE(SUM(
+          CASE 
+            WHEN type IN ('DEPOSIT','YIELD') THEN amount
+            WHEN type = 'WITHDRAW' THEN -amount
+            ELSE 0
+          END
+        ), 0) AS balance
+      FROM ledger_entries
+      WHERE wallet_id = ?`,
+      [walletId],
+    );
 
-module.exports = { depositToWallet ,withdrawFromWallet ,getWalletBalance};
+    const balance = Number(balanceRows[0].balance);
+    if (balance <= 0) {
+      await connection.commit();
+      return {
+        ok: true,
+        applied: false,
+        message: "No Balance to apply yield",
+      };
+    }
+    const yieldAmount = Number((balance * 0.01).toFixed(6));
+
+    const referenceId = `YIELD_${walletId}_${new Date().toISOString().slice(0, 10)}`;
+    await connection.query(
+      `
+      INSERT INTO ledger_entries (wallet_id, type, amount, reference_id)
+      VALUES (?, 'YIELD', ?, ?)
+      `,
+      [walletId, yieldAmount, referenceId],
+    );
+
+    await connection.commit();
+
+    return {
+      ok: true,
+      applied: true,
+      message: "Yield applied successfully",
+      yieldAmount: yieldAmount.toFixed(6),
+    };
+  } catch (err) {
+     await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+};
+module.exports = { depositToWallet, withdrawFromWallet, getWalletBalance , applyDailyYield};
