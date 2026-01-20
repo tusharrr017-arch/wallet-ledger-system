@@ -186,4 +186,18 @@ const applyDailyYield = async ({ walletId }) => {
     connection.release();
   }
 };
-module.exports = { depositToWallet, withdrawFromWallet, getWalletBalance , applyDailyYield};
+const getWalletTransactions = async (walletId) => {
+  const [rows] = await pool.query(
+    `
+    SELECT id, wallet_id, type, amount, reference_id, created_at
+    FROM ledger_entries
+    WHERE wallet_id = ?
+    ORDER BY created_at DESC
+    `,
+    [walletId]
+  );
+
+  return rows;
+};
+
+module.exports = { depositToWallet, withdrawFromWallet, getWalletBalance , applyDailyYield , getWalletTransactions};

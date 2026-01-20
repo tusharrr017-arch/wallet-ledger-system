@@ -1,4 +1,4 @@
-const {depositToWallet ,withdrawFromWallet ,getWalletBalance , applyDailyYield}= require("../services/ledgerService");
+const {depositToWallet ,withdrawFromWallet ,getWalletBalance , applyDailyYield ,getWalletTransactions}= require("../services/ledgerService");
 
 const deposit =async (req,res)=>{
     try{
@@ -99,4 +99,25 @@ const applyYield = async (req, res) => {
     });
   }
 };
-module.exports= {deposit,withdraw,getBalance,applyYield};
+
+const transactions = async (req, res) => {
+  try {
+    const { walletId } = req.params;
+
+    const rows = await getWalletTransactions(walletId);
+
+    return res.status(200).json({
+      ok: true,
+      walletId,
+      count: rows.length,
+      transactions: rows,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      ok: false,
+      message: err.message,
+    });
+  }
+};
+
+module.exports= {deposit,withdraw,getBalance,applyYield ,transactions};
