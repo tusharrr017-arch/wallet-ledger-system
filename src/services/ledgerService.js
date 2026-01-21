@@ -124,7 +124,7 @@ const applyDailyYield = async ({ walletId }) => {
       `SELECT id 
              FROM ledger_entries
              WHERE wallet_id=?
-               AND type ="YIELD"
+               AND type ='YIELD'
                AND DATE(created_at)= CURDATE()
              LIMIT 1`,
       [walletId],
