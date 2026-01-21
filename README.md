@@ -1,329 +1,200 @@
-# Wallet Ledger System
+# Wallet Ledger System (Node.js + MySQL)
 
-A simple wallet ledger system built using **Node.js + Express + MySQL**.
-Each user has exactly one wallet. All balance changes are recorded as **ledger entries** (DEPOSIT / WITHDRAW / YIELD).
-Balance is derived from the ledger and the ledger is treated as the source of truth.
+A wallet ledger system built using **Node.js (Express)** and **MySQL**, following a **ledger-style transaction model** where every balance change is recorded as an immutable entry.
 
----
-
-## Tech Stack
-
-* Node.js
-* Express.js
-* MySQL
-* mysql2
+This project supports:
+- User creation
+- Wallet creation
+- Deposits (simulated cash load)
+- Withdrawals
+- Yield credit (1% per day rule)
+- Transaction / ledger history
+- Idempotent deposits using `reference_id`
 
 ---
 
-## Project Setup (Run Locally)
+##  Live Deployment (Render)
 
-### 1) Install dependencies
+Backend is deployed on **Render**:
 
-```bash
-npm install
+###  Base URL
 ```
 
-### 2) Create `.env`
+[https://wallet-ledger-system.onrender.com](https://wallet-ledger-system.onrender.com)
 
-Create a `.env` file in the root folder (you can copy `.env.example`)
+```
+
+To use any API endpoint, append it to the base URL.
 
 Example:
-
-```env
-PORT=5500
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=your_password
-DB_NAME=wallet_ledger
 ```
 
-### 3) Setup Database
+[https://wallet-ledger-system.onrender.com/api/users](https://wallet-ledger-system.onrender.com/api/users)
 
-Run the `schema.sql` file in MySQL Workbench or terminal.
-
-Terminal example:
-
-```bash
-mysql -u root -p wallet_ledger < schema.sql
-```
-
-### 4) Start the server
-
-```bash
-npm run dev
-```
-
-Server runs at:
-
-```
-http://localhost:5500
 ```
 
 ---
 
-## API Endpoints
+##  Database (Aiven MySQL)
 
-> Base URL: `http://localhost:5500`
+Database is hosted on **Aiven (MySQL)**.
+
+Connection is done using environment variables in Render.
 
 ---
 
-### 1) Health Check
+##  Health Check
 
-**GET** `/`
+### GET `/health`
+Checks if server is running and DB is connected.
 
-Example:
-
-```bash
-GET http://localhost:5500/
+**Request**
 ```
 
-Response:
+GET [https://wallet-ledger-system.onrender.com/health](https://wallet-ledger-system.onrender.com/health)
 
+````
+
+**Response**
 ```json
 {
   "ok": true,
   "message": "Wallet Ledger API running",
   "db": "connected"
 }
-```
+````
 
 ---
 
-## Users
+##  API Endpoints
 
-### 2) Create User + Wallet
-
-Creates a new user and automatically creates a wallet for them.
+### 1) Create User
 
 **POST** `/api/users`
 
-Request Body:
+**Request**
 
 ```json
 {
-  "name": "Rahul"
-}
-```
-
-Response:
-
-```json
-{
-  "ok": true,
-  "message": "User created Successfully",
-  "data": {
-    "userId": 1,
-    "walletId": 1
-  }
+  "name": "Tushar"
 }
 ```
 
 ---
 
-## Wallet / Ledger Operations
-
-### 3) Deposit (Simulated Cash Load)
-
-Creates a `DEPOSIT` ledger entry for the wallet.
+### 2) Deposit Money (Cash Load Simulation)
 
 **POST** `/api/wallets/:walletId/deposit`
 
-Example:
-
-```bash
-POST http://localhost:5500/api/wallets/1/deposit
-```
-
-Request Body:
+**Request**
 
 ```json
 {
-  "amount": "100.000000",
-  "reference_id": "DEP_001"
+  "amount": 1000,
+  "referenceId": "dep_001"
 }
 ```
 
-Notes:
-
-* `reference_id` is used for idempotency
-* sending the same `reference_id` again will not credit twice
-
-Response (first time):
-
-```json
-{
-  "ok": true,
-  "message": "Deposit successful",
-  "duplicated": false
-}
-```
-
-Response (duplicate reference_id):
-
-```json
-{
-  "ok": true,
-  "message": "Deposit already processed",
-  "duplicated": true
-}
-```
+ Deposit is **idempotent** → sending the same `referenceId` again will not double credit.
 
 ---
 
-### 4) Withdraw
-
-Creates a `WITHDRAW` ledger entry if balance is sufficient.
+### 3) Withdraw Money
 
 **POST** `/api/wallets/:walletId/withdraw`
 
-Example:
-
-```bash
-POST http://localhost:5500/api/wallets/1/withdraw
-```
-
-Request Body:
+**Request**
 
 ```json
 {
-  "amount": "25.000000",
-  "reference_id": "WDR_001"
-}
-```
-
-Rules:
-
-* withdrawal is rejected if balance is insufficient
-* withdrawals are safe under concurrent requests using DB transaction + wallet lock
-
-Success Response:
-
-```json
-{
-  "ok": true,
-  "message": "Withdrawal succesful",
-  "duplicated": false
-}
-```
-
-Insufficient balance response:
-
-```json
-{
-  "ok": false,
-  "message": "Insufficient Balance"
+  "amount": 200,
+  "referenceId": "wd_001"
 }
 ```
 
 ---
 
-### 5) Get Wallet Balance
-
-Returns current balance derived from ledger.
+### 4) Get Wallet Balance
 
 **GET** `/api/wallets/:walletId/balance`
 
 Example:
 
-```bash
-GET http://localhost:5500/api/wallets/1/balance
 ```
-
-Response:
-
-```json
-{
-  "ok": true,
-  "walletId": "1",
-  "balance": "75.000000"
-}
+GET https://wallet-ledger-system.onrender.com/api/wallets/1/balance
 ```
 
 ---
 
-### 6) Apply Daily Yield (1% per day)
-
-Creates a `YIELD` ledger entry (1% of current balance).
-Yield is applied at most once per day per wallet.
+### 5) Apply Yield (1% daily)
 
 **POST** `/api/wallets/:walletId/yield`
 
 Example:
 
-```bash
-POST http://localhost:5500/api/wallets/1/yield
+```
+POST https://wallet-ledger-system.onrender.com/api/wallets/1/yield
 ```
 
-Response (first call today):
-
-```json
-{
-  "ok": true,
-  "applied": true,
-  "message": "Yield applied successfully",
-  "yieldAmount": "0.750000"
-}
-```
-
-Response (already applied today):
-
-```json
-{
-  "ok": true,
-  "applied": false,
-  "message": "Yield already applied today"
-}
-```
+ Yield is applied automatically based on wallet balance
+ Only **once per day per wallet**
 
 ---
 
-### 7) Get Wallet Transactions (Ledger History)
-
-Returns all ledger entries for a wallet.
+### 6) Transaction / Ledger History
 
 **GET** `/api/wallets/:walletId/transactions`
 
 Example:
 
-```bash
-GET http://localhost:5500/api/wallets/1/transactions
 ```
-
-Response:
-
-```json
-{
-  "ok": true,
-  "walletId": "1",
-  "count": 3,
-  "transactions": [
-    {
-      "id": 1,
-      "wallet_id": 1,
-      "type": "DEPOSIT",
-      "amount": "100.000000",
-      "reference_id": "DEP_001",
-      "created_at": "2026-01-20T10:00:00.000Z"
-    }
-  ]
-}
+GET https://wallet-ledger-system.onrender.com/api/wallets/1/transactions
 ```
 
 ---
 
-## Transaction Flow (Brief)
+##  Testing with Postman
 
-* All money operations are recorded in `ledger_entries`
-* Deposits and withdrawals use `reference_id` to ensure idempotency
-* Withdrawals and yield operations use DB transactions and wallet locking (`FOR UPDATE`) to ensure concurrency correctness
-* Wallet balance is derived by summing ledger entries (DEPOSIT + YIELD - WITHDRAW)
+Use the deployed base URL:
+
+```
+https://wallet-ledger-system.onrender.com
+```
+
+Then test endpoints like:
+
+* `POST /api/users`
+* `POST /api/wallets/1/deposit`
+* `POST /api/wallets/1/withdraw`
+* `POST /api/wallets/1/yield`
+* `GET /api/wallets/1/balance`
+* `GET /api/wallets/1/transactions`
 
 ---
 
-## Notes
+##  Environment Variables (Render)
 
-* Monetary values use `DECIMAL(18,6)` precision
-* Ledger entries are append-only and should not be updated/deleted
-* This project does not integrate real payments (cash load is simulated)
+These are configured inside Render → Environment Variables:
+
+* `DB_HOST`
+* `DB_PORT`
+* `DB_USER`
+* `DB_PASSWORD`
+* `DB_NAME`
+* `PORT` (Render auto assigns, but app supports it)
 
 ---
+
+##  Notes
+
+* No real payment system is integrated (cash loading is simulated)
+* All balance changes are tracked via ledger entries
+* MySQL used as primary database
+* Works on local + deployed production environment
+
+---
+
+##  Author
+
+Built by **Tushar Lakhani**
+
