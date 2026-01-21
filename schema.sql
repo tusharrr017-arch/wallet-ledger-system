@@ -1,0 +1,31 @@
+CREATE DATABASE IF NOT EXISTS wallet_ledger;
+USE wallet_ledger;
+
+CREATE TABLE IF NOT EXISTS users (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name VARCHAR(100) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS wallets (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uniq_user_wallet (user_id),
+  CONSTRAINT fk_wallet_user FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS ledger_entries (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  wallet_id BIGINT UNSIGNED NOT NULL,
+  type ENUM('DEPOSIT','WITHDRAW','YIELD') NOT NULL,
+  amount DECIMAL(18,6) NOT NULL,
+  reference_id VARCHAR(120) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uniq_reference_id (reference_id),
+  INDEX idx_wallet_created (wallet_id, created_at),
+  CONSTRAINT fk_ledger_wallet FOREIGN KEY (wallet_id) REFERENCES wallets(id)
+);

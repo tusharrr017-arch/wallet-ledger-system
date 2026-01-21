@@ -90,7 +90,7 @@ const getWalletBalance = async (walletId) => {
   const [rows] = await pool.query(
     `
     SELECT 
-      COALESCE(SUM(
+    COALESCE(SUM(
         CASE 
           WHEN type IN ('DEPOSIT','YIELD') THEN amount
           WHEN type = 'WITHDRAW' THEN -amount
