@@ -137,33 +137,21 @@ const applyDailyYield = async ({ walletId }) => {
         message: "Yield already applied today",
       };
     }
-    const [yieldCalcRows] = await connection.query(
-      `
-  SELECT 
-    COALESCE(SUM(
-      CASE 
-        WHEN type IN ('DEPOSIT','YIELD') THEN amount
-        WHEN type = 'WITHDRAW' THEN -amount
-        ELSE 0
-      END
-    ), 0) AS balance,
-    CAST(
-      COALESCE(SUM(
-        CASE 
-          WHEN type IN ('DEPOSIT','YIELD') THEN amount
-          WHEN type = 'WITHDRAW' THEN -amount
-          ELSE 0
-        END
-      ), 0) * 0.01
-    AS DECIMAL(18,6)) AS yield_amount
-  FROM ledger_entries
-  WHERE wallet_id = ?
-  `,
+    const [balanceRows] = await connection.query(
+      `SELECT 
+        COALESCE(SUM(
+          CASE 
+            WHEN type IN ('DEPOSIT','YIELD') THEN amount
+            WHEN type = 'WITHDRAW' THEN -amount
+            ELSE 0
+          END
+        ), 0) AS balance
+      FROM ledger_entries
+      WHERE wallet_id = ?`,
       [walletId],
     );
 
-    const balance = Number(yieldCalcRows[0].balance);
-
+    const balance = Number(balanceRows[0].balance);
     if (balance <= 0) {
       await connection.commit();
       return {
@@ -172,8 +160,7 @@ const applyDailyYield = async ({ walletId }) => {
         message: "No Balance to apply yield",
       };
     }
-
-    const yieldAmount = yieldCalcRows[0].yield_amount;
+    const yieldAmount = Number((balance * 0.01).toFixed(6));
 
     const referenceId = `YIELD_${walletId}_${new Date().toISOString().slice(0, 10)}`;
     await connection.query(
@@ -193,7 +180,7 @@ const applyDailyYield = async ({ walletId }) => {
       yieldAmount: yieldAmount.toFixed(6),
     };
   } catch (err) {
-    await connection.rollback();
+     await connection.rollback();
     throw err;
   } finally {
     connection.release();
@@ -207,16 +194,10 @@ const getWalletTransactions = async (walletId) => {
     WHERE wallet_id = ?
     ORDER BY created_at DESC
     `,
-    [walletId],
+    [walletId]
   );
 
   return rows;
 };
 
-module.exports = {
-  depositToWallet,
-  withdrawFromWallet,
-  getWalletBalance,
-  applyDailyYield,
-  getWalletTransactions,
-};
+module.exports = { depositToWallet, withdrawFromWallet, getWalletBalance , applyDailyYield , getWalletTransactions};
