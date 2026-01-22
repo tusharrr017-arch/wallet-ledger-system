@@ -92,7 +92,7 @@ GET [https://wallet-ledger-system.onrender.com/health](https://wallet-ledger-sys
 ```json
 {
   "amount": 1000,
-  "referenceId": "dep_001"
+  "reference_id": "dep_001"
 }
 ```
 
@@ -109,7 +109,7 @@ GET [https://wallet-ledger-system.onrender.com/health](https://wallet-ledger-sys
 ```json
 {
   "amount": 200,
-  "referenceId": "wd_001"
+  "reference_id": "wd_001"
 }
 ```
 
